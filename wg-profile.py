@@ -47,7 +47,7 @@ PrivateKey = {2}'''.format(ip, port, private_key)
     os.chmod("/etc/wireguard/public.key", 0o640)
     print("WireGuard configuration has been succesfully set.")
 
-def create(allowed_ips: str, endpoint: str):
+def create(allowed_ips: str, endpoint: str, comment):
     cl_private_key = subprocess.check_output(["wg", "genkey"]).decode().strip()
     cl_public_key = subprocess.check_output(["wg", "pubkey"], input=cl_private_key.encode()).decode().strip()
     sv_public_key = subprocess.check_output(["cat", "/etc/wireguard/public.key"]).decode().strip()
@@ -55,10 +55,10 @@ def create(allowed_ips: str, endpoint: str):
     ip = get_next_available_ip('/etc/wireguard/wg0.conf')
 
 
-    sv_peer = '''[Peer]
+    sv_peer = '''{3}[Peer]
 PublicKey = {0}
 PresharedKey = {1}
-AllowedIPs = {2}'''.format(cl_public_key, preshared_key, f"{ip}/32")
+AllowedIPs = {2}'''.format(cl_public_key, preshared_key, f"{ip}/32", f"# {comment}\n"if comment else "")
     write_file('/etc/wireguard/wg0.conf', sv_peer, True)
     client = '''[Interface]
 PrivateKey = {0}
@@ -83,11 +83,12 @@ def parse_args():
     create_parser = subparsers.add_parser('create', help="Create a new peer")
     create_parser.add_argument('--allowedIPs', type=str, required=True, help="The IPs the peer will be able to reach.")
     create_parser.add_argument('--endpoint', type=str, required=True, help="Server endpoint in the format ip:port")
+    create_parser.add_argument('--comment', type=str, required=False, help="Add a comment above the new peer")
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse_args()
     if args.command == "create":
-        create(args.allowedIPs, args.endpoint)
+        create(args.allowedIPs, args.endpoint, args.comment)
     elif args.command == "init":
         init(args.ip, args.port)
